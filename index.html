@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor Shapefile para KML</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: linear-gradient(45deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: linear-gradient(45deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: linear-gradient(45deg, rgba(76, 175, 80, 0.1), rgba(102, 126, 234, 0.1));
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .file-list {
+            margin: 20px 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .file-item {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .file-icon {
+            margin-right: 15px;
+            font-size: 1.5em;
+            opacity: 0.7;
+        }
+
+        .file-details {
+            flex-grow: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #28a745;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .info-title {
+            font-weight: 600;
+            color: #1565C0;
+            margin-bottom: 10px;
+        }
+
+        .info-text {
+            color: #0D47A1;
+            line-height: 1.6;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .processing {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ Conversor Shapefile → KML</h1>
+        <p class="subtitle">Converta seus arquivos shapefile para KML sem limites, diretamente no seu navegador</p>
+
+        <div class="info-box">
+            <div class="info-title">📋 Instruções:</div>
+            <div class="info-text">
+                • Selecione arquivos ZIP contendo shapefiles (.shp, .shx, .dbf, .prj)<br>
+                • Múltiplos arquivos podem ser processados simultaneamente<br>
+                • A conversão acontece localmente no seu navegador<br>
+                • Sem limites de tamanho ou quantidade de arquivos
+            </div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Arraste e solte seus arquivos ZIP aqui</div>
+            <div class="upload-hint">ou clique para selecionar arquivos</div>
+            <input type="file" id="fileInput" accept=".zip" multiple>
+        </div>
+
+        <ul class="file-list" id="fileList"></ul>
+
+        <div style="text-align: center;">
+            <button class="btn" id="convertBtn" disabled>🔄 Converter para KML</button>
+            <button class="btn" id="clearBtn">🗑️ Limpar Lista</button>
+        </div>
+
+        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+            <div class="info-title" style="color: #856404;">💡 Dica para muitos arquivos:</div>
+            <div class="info-text" style="color: #856404;">
+                Para mais de 10 arquivos, será criado um ZIP com todos os KMLs para facilitar o download.
+                Para menos arquivos, cada KML será baixado individualmente.
+            </div>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div>Processando arquivos...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="progressText">0%</div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        class ShapefileToKMLConverter {
+            constructor() {
+                this.files = [];
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+                const convertBtn = document.getElementById('convertBtn');
+                const clearBtn = document.getElementById('clearBtn');
+
+                uploadArea.addEventListener('click', () => fileInput.click());
+                uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+                uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                uploadArea.addEventListener('drop', this.handleDrop.bind(this));
+
+                fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+                convertBtn.addEventListener('click', this.convertFiles.bind(this));
+                clearBtn.addEventListener('click', this.clearFiles.bind(this));
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                e.currentTarget.classList.add('dragover');
+            }
+
+            handleDragLeave(e) {
+                e.currentTarget.classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files).filter(file => 
+                    file.name.toLowerCase().endsWith('.zip')
+                );
+                this.addFiles(files);
+            }
+
+            handleFileSelect(e) {
+                const files = Array.from(e.target.files);
+                this.addFiles(files);
+            }
+
+            addFiles(files) {
+                files.forEach(file => {
+                    if (!this.files.some(f => f.name === file.name && f.size === file.size)) {
+                        this.files.push(file);
+                    }
+                });
+                this.updateFileList();
+                this.updateConvertButton();
+            }
+
+            removeFile(index) {
+                this.files.splice(index, 1);
+                this.updateFileList();
+                this.updateConvertButton();
+            }
+
+            clearFiles() {
+                this.files = [];
+                this.updateFileList();
+                this.updateConvertButton();
+                this.hideStatus();
+            }
+
+            updateFileList() {
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                this.files.forEach((file, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'file-item';
+                    li.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-icon">📦</div>
+                            <div class="file-details">
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-size">${this.formatFileSize(file.size)}</div>
+                            </div>
+                        </div>
+                        <button class="remove-btn" onclick="converter.removeFile(${index})">✕</button>
+                    `;
+                    fileList.appendChild(li);
+                });
+            }
+
+            updateConvertButton() {
+                const convertBtn = document.getElementById('convertBtn');
+                convertBtn.disabled = this.files.length === 0;
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            async convertFiles() {
+                if (this.files.length === 0) return;
+
+                this.showProgress();
+                this.hideStatus();
+
+                const convertBtn = document.getElementById('convertBtn');
+                convertBtn.disabled = true;
+                convertBtn.classList.add('processing');
+
+                const convertedFiles = [];
+                let successCount = 0;
+                let errorCount = 0;
+
+                try {
+                    for (let i = 0; i < this.files.length; i++) {
+                        const progress = ((i + 1) / this.files.length) * 100;
+                        this.updateProgress(progress, `Processando ${this.files[i].name}... (${i + 1}/${this.files.length})`);
+
+                        try {
+                            const kmlContent = await this.convertSingleFileToKML(this.files[i]);
+                            const kmlFilename = this.files[i].name.replace('.zip', '.kml');
+                            convertedFiles.push({ content: kmlContent, filename: kmlFilename });
+                            successCount++;
+                        } catch (error) {
+                            console.error(`Erro ao converter ${this.files[i].name}:`, error);
+                            errorCount++;
+                        }
+                    }
+
+                    // Se há muitos arquivos, criar um ZIP com todos os KMLs
+                    if (convertedFiles.length > 10) {
+                        this.updateProgress(100, 'Preparando download em lote...');
+                        await this.downloadAllAsZip(convertedFiles);
+                    } else {
+                        // Para poucos arquivos, download individual com delay
+                        this.updateProgress(100, 'Iniciando downloads...');
+                        await this.downloadFilesWithDelay(convertedFiles);
+                    }
+
+                    let message = `✅ Conversão concluída! ${successCount} arquivo(s) convertido(s)`;
+                    if (errorCount > 0) {
+                        message += `, ${errorCount} erro(s)`;
+                    }
+                    this.showStatus('success', message);
+
+                } catch (error) {
+                    console.error('Erro na conversão:', error);
+                    this.showStatus('error', `❌ Erro na conversão: ${error.message}`);
+                } finally {
+                    this.hideProgress();
+                    convertBtn.disabled = false;
+                    convertBtn.classList.remove('processing');
+                }
+            }
+
+            async convertSingleFileToKML(file) {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+                
+                const shpFile = Object.keys(zipContent.files).find(name => 
+                    name.toLowerCase().endsWith('.shp')
+                );
+                
+                const dbfFile = Object.keys(zipContent.files).find(name => 
+                    name.toLowerCase().endsWith('.dbf')
+                );
+
+                if (!shpFile) {
+                    throw new Error(`Arquivo .shp não encontrado em ${file.name}`);
+                }
+
+                const shpData = await zipContent.files[shpFile].async('arraybuffer');
+                const dbfData = dbfFile ? await zipContent.files[dbfFile].async('arraybuffer') : null;
+
+                const features = this.parseShapefile(shpData, dbfData);
+                const kml = this.generateKML(features, file.name);
+                
+                return kml;
+            }
+
+            async downloadFilesWithDelay(files) {
+                for (let i = 0; i < files.length; i++) {
+                    this.downloadKML(files[i].content, files[i].filename);
+                    // Delay entre downloads para evitar bloqueio do navegador
+                    if (i < files.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                }
+            }
+
+            async downloadAllAsZip(files) {
+                const zip = new JSZip();
+                
+                files.forEach(file => {
+                    zip.file(file.filename, file.content);
+                });
+
+                const zipContent = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(zipContent);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `shapefiles_converted_${new Date().getTime()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            async convertSingleFile(file) {
+                try {
+                    const kml = await this.convertSingleFileToKML(file);
+                    this.downloadKML(kml, file.name.replace('.zip', '.kml'));
+                } catch (error) {
+                    throw new Error(`Erro ao processar ${file.name}: ${error.message}`);
+                }
+            }
+
+            parseShapefile(shpBuffer, dbfBuffer) {
+                const features = [];
+                const shpView = new DataView(shpBuffer);
+                
+                try {
+                    // Verifica se o buffer tem tamanho mínimo
+                    if (shpBuffer.byteLength < 100) {
+                        throw new Error('Arquivo shapefile muito pequeno ou corrompido');
+                    }
+                    
+                    // Lê o cabeçalho do shapefile
+                    const fileCode = shpView.getInt32(0, false); // Big endian
+                    if (fileCode !== 9994) {
+                        throw new Error('Arquivo shapefile inválido - código de arquivo incorreto');
+                    }
+                    
+                    const shapeType = shpView.getInt32(32, true); // Little endian
+                    const fileLength = Math.min(shpView.getInt32(24, false) * 2, shpBuffer.byteLength); // Em bytes
+                    
+                    let offset = 100; // Pula o cabeçalho
+                    let recordIndex = 0;
+                    
+                    // Parse attributes from DBF if available
+                    let attributes = [];
+                    if (dbfBuffer) {
+                        try {
+                            attributes = this.parseDBF(dbfBuffer);
+                        } catch (dbfError) {
+                            console.warn('Erro ao ler DBF, continuando sem atributos:', dbfError);
+                        }
+                    }
+                    
+                    while (offset < fileLength && offset + 8 <= shpBuffer.byteLength) {
+                        try {
+                            const recordNumber = shpView.getInt32(offset, false);
+                            const contentLength = shpView.getInt32(offset + 4, false) * 2;
+                            offset += 8;
+                            
+                            // Verifica se temos dados suficientes para ler o registro
+                            if (offset + contentLength > shpBuffer.byteLength || contentLength < 4) {
+                                console.warn(`Registro ${recordIndex} parece corrompido, pulando...`);
+                                break;
+                            }
+                            
+                            const recordShapeType = shpView.getInt32(offset, true);
+                            
+                            if (recordShapeType !== 0) { // Não é um registro nulo
+                                try {
+                                    const geometry = this.parseGeometry(shpView, offset + 4, recordShapeType, contentLength - 4);
+                                    if (geometry) {
+                                        features.push({
+                                            geometry,
+                                            attributes: attributes[recordIndex] || {},
+                                            recordNumber
+                                        });
+                                    }
+                                } catch (geomError) {
+                                    console.warn(`Erro ao processar geometria do registro ${recordIndex}:`, geomError);
+                                }
+                            }
+                            
+                            offset += contentLength;
+                            recordIndex++;
+                            
+                            // Proteção contra loop infinito
+                            if (recordIndex > 100000) {
+                                console.warn('Muitos registros, limitando a 100.000');
+                                break;
+                            }
+                            
+                        } catch (recordError) {
+                            console.warn(`Erro ao processar registro ${recordIndex}:`, recordError);
+                            break;
+                        }
+                    }
+                    
+                } catch (error) {
+                    throw new Error(`Erro ao processar shapefile: ${error.message}`);
+                }
+                
+                return features;
+            }
+
+            parseDBF(dbfBuffer) {
+                const attributes = [];
+                const view = new DataView(dbfBuffer);
+                
+                // Lê o cabeçalho DBF
+                const recordCount = view.getInt32(4, true);
+                const headerLength = view.getInt16(8, true);
+                const recordLength = view.getInt16(10, true);
+                
+                // Lê os descritores de campo
+                const fields = [];
+                let fieldOffset = 32;
+                
+                while (fieldOffset < headerLength - 1) {
+                    const fieldName = new TextDecoder('ascii').decode(
+                        new Uint8Array(dbfBuffer, fieldOffset, 11)
+                    ).replace(/\0+$/, '');
+                    
+                    const fieldType = String.fromCharCode(view.getUint8(fieldOffset + 11));
+                    const fieldLength = view.getUint8(fieldOffset + 16);
+                    
+                    fields.push({ name: fieldName, type: fieldType, length: fieldLength });
+                    fieldOffset += 32;
+                }
+                
+                // Lê os registros
+                let recordOffset = headerLength;
+                
+                for (let i = 0; i < recordCount; i++) {
+                    const record = {};
+                    let fieldPos = recordOffset + 1; // Pula o flag de deleção
+                    
+                    fields.forEach(field => {
+                        const fieldData = new TextDecoder('ascii').decode(
+                            new Uint8Array(dbfBuffer, fieldPos, field.length)
+                        ).trim();
+                        
+                        record[field.name] = fieldData;
+                        fieldPos += field.length;
+                    });
+                    
+                    attributes.push(record);
+                    recordOffset += recordLength;
+                }
+                
+                return attributes;
+            }
+
+            parseGeometry(view, offset, shapeType, length) {
+                try {
+                    // Verifica se temos dados suficientes
+                    if (offset + length > view.byteLength) {
+                        throw new Error('Dados insuficientes para geometria');
+                    }
+                    
+                    switch (shapeType) {
+                        case 1: // Point
+                            if (length < 16) throw new Error('Dados insuficientes para Point');
+                            return this.parsePoint(view, offset);
+                        case 3: // Polyline
+                            if (length < 44) throw new Error('Dados insuficientes para Polyline');
+                            return this.parsePolyline(view, offset, length);
+                        case 5: // Polygon
+                            if (length < 44) throw new Error('Dados insuficientes para Polygon');
+                            return this.parsePolygon(view, offset, length);
+                        case 8: // MultiPoint
+                            if (length < 40) throw new Error('Dados insuficientes para MultiPoint');
+                            return this.parseMultiPoint(view, offset, length);
+                        default:
+                            console.warn(`Tipo de geometria não suportado: ${shapeType}`);
+                            return null;
+                    }
+                } catch (error) {
+                    console.warn(`Erro ao processar geometria tipo ${shapeType}:`, error.message);
+                    return null;
+                }
+            }
+
+            parsePoint(view, offset) {
+                const x = view.getFloat64(offset, true);
+                const y = view.getFloat64(offset + 8, true);
+                return {
+                    type: 'Point',
+                    coordinates: [x, y]
+                };
+            }
+
+            parsePolyline(view, offset, maxLength) {
+                try {
+                    const bbox = this.readBoundingBox(view, offset);
+                    const numParts = view.getInt32(offset + 32, true);
+                    const numPoints = view.getInt32(offset + 36, true);
+                    
+                    // Validações de segurança
+                    if (numParts < 0 || numParts > 10000) throw new Error(`Número inválido de partes: ${numParts}`);
+                    if (numPoints < 0 || numPoints > 100000) throw new Error(`Número inválido de pontos: ${numPoints}`);
+                    
+                    const requiredBytes = 40 + (numParts * 4) + (numPoints * 16);
+                    if (requiredBytes > maxLength) throw new Error('Dados insuficientes para polyline');
+                    
+                    const parts = [];
+                    for (let i = 0; i < numParts; i++) {
+                        parts.push(view.getInt32(offset + 40 + (i * 4), true));
+                    }
+                    
+                    const coordinates = [];
+                    let pointOffset = offset + 40 + (numParts * 4);
+                    
+                    for (let i = 0; i < numParts; i++) {
+                        const startPoint = parts[i];
+                        const endPoint = parts[i + 1] || numPoints;
+                        const lineString = [];
+                        
+                        for (let j = startPoint; j < endPoint && j < numPoints; j++) {
+                            const pointByteOffset = pointOffset + (j * 16);
+                            if (pointByteOffset + 16 > view.byteLength) break;
+                            
+                            const x = view.getFloat64(pointByteOffset, true);
+                            const y = view.getFloat64(pointByteOffset + 8, true);
+                            
+                            // Validação básica de coordenadas
+                            if (!isFinite(x) || !isFinite(y)) continue;
+                            
+                            lineString.push([x, y]);
+                        }
+                        
+                        if (lineString.length > 0) {
+                            coordinates.push(lineString);
+                        }
+                    }
+                    
+                    if (coordinates.length === 0) return null;
+                    
+                    return {
+                        type: numParts === 1 ? 'LineString' : 'MultiLineString',
+                        coordinates: numParts === 1 ? coordinates[0] : coordinates
+                    };
+                } catch (error) {
+                    throw new Error(`Erro ao processar polyline: ${error.message}`);
+                }
+            }
+
+            parsePolygon(view, offset, maxLength) {
+                try {
+                    const bbox = this.readBoundingBox(view, offset);
+                    const numParts = view.getInt32(offset + 32, true);
+                    const numPoints = view.getInt32(offset + 36, true);
+                    
+                    // Validações de segurança
+                    if (numParts < 0 || numParts > 10000) throw new Error(`Número inválido de partes: ${numParts}`);
+                    if (numPoints < 0 || numPoints > 100000) throw new Error(`Número inválido de pontos: ${numPoints}`);
+                    
+                    const requiredBytes = 40 + (numParts * 4) + (numPoints * 16);
+                    if (requiredBytes > maxLength) throw new Error('Dados insuficientes para polygon');
+                    
+                    const parts = [];
+                    for (let i = 0; i < numParts; i++) {
+                        parts.push(view.getInt32(offset + 40 + (i * 4), true));
+                    }
+                    
+                    const coordinates = [];
+                    let pointOffset = offset + 40 + (numParts * 4);
+                    
+                    for (let i = 0; i < numParts; i++) {
+                        const startPoint = parts[i];
+                        const endPoint = parts[i + 1] || numPoints;
+                        const ring = [];
+                        
+                        for (let j = startPoint; j < endPoint && j < numPoints; j++) {
+                            const pointByteOffset = pointOffset + (j * 16);
+                            if (pointByteOffset + 16 > view.byteLength) break;
+                            
+                            const x = view.getFloat64(pointByteOffset, true);
+                            const y = view.getFloat64(pointByteOffset + 8, true);
+                            
+                            // Validação básica de coordenadas
+                            if (!isFinite(x) || !isFinite(y)) continue;
+                            
+                            ring.push([x, y]);
+                        }
+                        
+                        if (ring.length > 2) { // Polígono precisa de pelo menos 3 pontos
+                            coordinates.push(ring);
+                        }
+                    }
+                    
+                    if (coordinates.length === 0) return null;
+                    
+                    return {
+                        type: 'Polygon',
+                        coordinates: coordinates
+                    };
+                } catch (error) {
+                    throw new Error(`Erro ao processar polygon: ${error.message}`);
+                }
+            }
+
+            parseMultiPoint(view, offset) {
+                const bbox = this.readBoundingBox(view, offset);
+                const numPoints = view.getInt32(offset + 32, true);
+                
+                const coordinates = [];
+                let pointOffset = offset + 36;
+                
+                for (let i = 0; i < numPoints; i++) {
+                    const x = view.getFloat64(pointOffset + (i * 16), true);
+                    const y = view.getFloat64(pointOffset + (i * 16) + 8, true);
+                    coordinates.push([x, y]);
+                }
+                
+                return {
+                    type: 'MultiPoint',
+                    coordinates: coordinates
+                };
+            }
+
+            readBoundingBox(view, offset) {
+                return {
+                    minX: view.getFloat64(offset, true),
+                    minY: view.getFloat64(offset + 8, true),
+                    maxX: view.getFloat64(offset + 16, true),
+                    maxY: view.getFloat64(offset + 24, true)
+                };
+            }
+
+            generateKML(features, filename) {
+                const name = filename.replace(/\.[^/.]+$/, "");
+                
+                let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+    <Document>
+        <name>${this.escapeXml(name)}</name>
+        <description>Convertido de Shapefile para KML</description>
+        
+        <Style id="pointStyle">
+            <IconStyle>
+                <Icon>
+                    <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+                </Icon>
+            </IconStyle>
+        </Style>
+        
+        <Style id="lineStyle">
+            <LineStyle>
+                <color>ff0000ff</color>
+                <width>2</width>
+            </LineStyle>
+        </Style>
+        
+        <Style id="polygonStyle">
+            <LineStyle>
+                <color>ff0000ff</color>
+                <width>2</width>
+            </LineStyle>
+            <PolyStyle>
+                <fill>0</fill>
+            </PolyStyle>
+        </Style>
+`;
+
+                features.forEach((feature, index) => {
+                    kml += this.generatePlacemark(feature, index);
+                });
+
+                kml += `    </Document>
+</kml>`;
+
+                return kml;
+            }
+
+            generatePlacemark(feature, index) {
+                const { geometry, attributes } = feature;
+                const name = attributes.NAME || attributes.name || `Feature ${index + 1}`;
+                
+                let placemark = `        <Placemark>
+            <name>${this.escapeXml(name)}</name>
+            <description><![CDATA[`;
+
+                // Adiciona atributos à descrição
+                Object.keys(attributes).forEach(key => {
+                    if (attributes[key]) {
+                        placemark += `<strong>${key}:</strong> ${this.escapeXml(attributes[key])}<br/>`;
+                    }
+                });
+
+                placemark += `]]></description>
+            <styleUrl>#${this.getStyleForGeometry(geometry.type)}</styleUrl>
+            ${this.generateGeometryKML(geometry)}
+        </Placemark>
+`;
+
+                return placemark;
+            }
+
+            generateGeometryKML(geometry) {
+                switch (geometry.type) {
+                    case 'Point':
+                        return `<Point><coordinates>${geometry.coordinates[0]},${geometry.coordinates[1]},0</coordinates></Point>`;
+                    
+                    case 'LineString':
+                        const lineCoords = geometry.coordinates.map(coord => `${coord[0]},${coord[1]},0`).join(' ');
+                        return `<LineString><coordinates>${lineCoords}</coordinates></LineString>`;
+                    
+                    case 'Polygon':
+                        let polygonKML = '<Polygon>';
+                        geometry.coordinates.forEach((ring, i) => {
+                            const ringCoords = ring.map(coord => `${coord[0]},${coord[1]},0`).join(' ');
+                            const boundaryType = i === 0 ? 'outerBoundaryIs' : 'innerBoundaryIs';
+                            polygonKML += `<${boundaryType}><LinearRing><coordinates>${ringCoords}</coordinates></LinearRing></${boundaryType}>`;
+                        });
+                        polygonKML += '</Polygon>';
+                        return polygonKML;
+                    
+                    case 'MultiPoint':
+                        let multiPointKML = '<MultiGeometry>';
+                        geometry.coordinates.forEach(coord => {
+                            multiPointKML += `<Point><coordinates>${coord[0]},${coord[1]},0</coordinates></Point>`;
+                        });
+                        multiPointKML += '</MultiGeometry>';
+                        return multiPointKML;
+                    
+                    case 'MultiLineString':
+                        let multiLineKML = '<MultiGeometry>';
+                        geometry.coordinates.forEach(line => {
+                            const lineCoords = line.map(coord => `${coord[0]},${coord[1]},0`).join(' ');
+                            multiLineKML += `<LineString><coordinates>${lineCoords}</coordinates></LineString>`;
+                        });
+                        multiLineKML += '</MultiGeometry>';
+                        return multiLineKML;
+                    
+                    default:
+                        return '<Point><coordinates>0,0,0</coordinates></Point>';
+                }
+            }
+
+            getStyleForGeometry(type) {
+                switch (type) {
+                    case 'Point':
+                    case 'MultiPoint':
+                        return 'pointStyle';
+                    case 'LineString':
+                    case 'MultiLineString':
+                        return 'lineStyle';
+                    case 'Polygon':
+                    case 'MultiPolygon':
+                        return 'polygonStyle';
+                    default:
+                        return 'pointStyle';
+                }
+            }
+
+            escapeXml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            downloadKML(kmlContent, filename) {
+                const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            showProgress() {
+                document.getElementById('progressContainer').style.display = 'block';
+            }
+
+            hideProgress() {
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+
+            updateProgress(percent, text) {
+                document.getElementById('progressFill').style.width = percent + '%';
+                document.getElementById('progressText').textContent = `${Math.round(percent)}% - ${text}`;
+            }
+
+            showStatus(type, message) {
+                const status = document.getElementById('status');
+                status.className = `status ${type}`;
+                status.textContent = message;
+                status.style.display = 'block';
+            }
+
+            hideStatus() {
+                document.getElementById('status').style.display = 'none';
+            }
+        }
+
+        // Inicializa o conversor
+        const converter = new ShapefileToKMLConverter();
+    </script>
+</body>
+</html>
