@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor TXT para JSON em Lote</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            font-weight: 300;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .select-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .select-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-list {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .file-item {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 0.8em;
+        }
+
+        .convert-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .convert-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .convert-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .conversion-options {
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .option-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-group label {
+            display: block;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .option-group select, .option-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s ease;
+        }
+
+        .option-group select:focus, .option-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+
+        .status.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Conversor TXT → JSON</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Arraste arquivos TXT aqui ou clique para selecionar</div>
+            <button class="select-button" onclick="document.getElementById('fileInput').click()">
+                Selecionar Arquivos TXT
+            </button>
+        </div>
+
+        <input type="file" id="fileInput" class="file-input" multiple accept=".txt">
+
+        <div class="conversion-options">
+            <div class="option-title">Opções de Conversão</div>
+            
+            <div class="option-group">
+                <label for="structureType">Estrutura do JSON:</label>
+                <select id="structureType">
+                    <option value="raw">Manter conteúdo original (apenas trocar extensão)</option>
+                    <option value="lines">Uma linha por elemento do array</option>
+                    <option value="single">Texto completo em uma string</option>
+                    <option value="paragraphs">Um parágrafo por elemento do array</option>
+                    <option value="custom">Estrutura personalizada</option>
+                </select>
+            </div>
+
+            <div class="option-group" id="customKeyGroup" style="display: none;">
+                <label for="customKey">Nome da propriedade:</label>
+                <input type="text" id="customKey" placeholder="Ex: content, text, data">
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="removeEmpty">
+                <label for="removeEmpty">Remover linhas vazias</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="trimWhitespace" checked>
+                <label for="trimWhitespace">Remover espaços em branco extras</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="addMetadata">
+                <label for="addMetadata">Incluir metadados (nome do arquivo, data)</label>
+            </div>
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <button class="convert-button" id="convertButton" onclick="convertFiles()" disabled>
+            Converter para JSON e Baixar ZIP
+        </button>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Processando...</div>
+        </div>
+
+        <div class="status" id="status" style="display: none;"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let selectedFiles = [];
+
+        // Configurar eventos
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        document.getElementById('structureType').addEventListener('change', handleStructureChange);
+
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('click', () => document.getElementById('fileInput').click());
+
+        function handleStructureChange() {
+            const structureType = document.getElementById('structureType').value;
+            const customKeyGroup = document.getElementById('customKeyGroup');
+            customKeyGroup.style.display = structureType === 'custom' ? 'block' : 'none';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.txt'));
+            if (files.length > 0) {
+                selectedFiles = files;
+                updateFileList();
+                updateConvertButton();
+            } else {
+                showStatus('Apenas arquivos TXT são aceitos!', 'error');
+            }
+        }
+
+        function handleFileSelect(e) {
+            selectedFiles = Array.from(e.target.files);
+            updateFileList();
+            updateConvertButton();
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map(file => `
+                <div class="file-item">
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateConvertButton() {
+            const convertButton = document.getElementById('convertButton');
+            convertButton.disabled = selectedFiles.length === 0;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        async function convertFiles() {
+            if (selectedFiles.length === 0) return;
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const convertButton = document.getElementById('convertButton');
+            
+            // Mostrar progresso
+            progressContainer.style.display = 'block';
+            convertButton.disabled = true;
+            hideStatus();
+
+            const zip = new JSZip();
+            const totalFiles = selectedFiles.length;
+
+            try {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const progress = ((i + 1) / totalFiles) * 100;
+                    
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = `Processando ${file.name} (${i + 1}/${totalFiles})`;
+
+                    const content = await readFileContent(file);
+                    const jsonContent = convertTxtToJson(content, file.name);
+                    const fileName = file.name.replace(/\.txt$/i, '.json');
+                    
+                    // Se for modo "raw" e o conteúdo já é JSON válido, mantém formatação original
+                    if (document.getElementById('structureType').value === 'raw' && typeof jsonContent === 'object') {
+                        zip.file(fileName, JSON.stringify(jsonContent, null, 2));
+                    } else {
+                        zip.file(fileName, JSON.stringify(jsonContent, null, 2));
+                    }
+                    
+                    // Pequena pausa para atualização visual
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                // Gerar e baixar ZIP
+                progressText.textContent = 'Gerando arquivo ZIP...';
+                const zipBlob = await zip.generateAsync({type: 'blob'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = `arquivos_convertidos_${new Date().toISOString().slice(0, 10)}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showStatus(`✅ ${totalFiles} arquivo(s) convertido(s) com sucesso!`, 'success');
+                
+            } catch (error) {
+                console.error('Erro na conversão:', error);
+                showStatus('❌ Erro durante a conversão: ' + error.message, 'error');
+            } finally {
+                // Esconder progresso e reabilitar botão
+                progressContainer.style.display = 'none';
+                convertButton.disabled = false;
+            }
+        }
+
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(new Error('Erro ao ler arquivo: ' + file.name));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        function convertTxtToJson(content, fileName) {
+            const structureType = document.getElementById('structureType').value;
+            const removeEmpty = document.getElementById('removeEmpty').checked;
+            const trimWhitespace = document.getElementById('trimWhitespace').checked;
+            const addMetadata = document.getElementById('addMetadata').checked;
+            const customKey = document.getElementById('customKey').value || 'content';
+
+            // Se for "raw", apenas retorna o conteúdo original para manter como está
+            if (structureType === 'raw') {
+                try {
+                    // Tenta fazer parse para validar se é JSON válido
+                    const parsedContent = JSON.parse(content);
+                    return parsedContent; // Retorna o JSON parseado
+                } catch (error) {
+                    // Se não for JSON válido, retorna como string
+                    return { content: content, note: "Conteúdo original mantido (não era JSON válido)" };
+                }
+            }
+
+            let processedContent = content;
+            if (trimWhitespace) {
+                processedContent = processedContent.trim();
+            }
+
+            let jsonData = {};
+
+            // Adicionar metadados se solicitado
+            if (addMetadata) {
+                jsonData.metadata = {
+                    originalFileName: fileName,
+                    convertedAt: new Date().toISOString(),
+                    fileSize: content.length
+                };
+            }
+
+            switch (structureType) {
+                case 'lines':
+                    let lines = processedContent.split('\n');
+                    if (trimWhitespace) {
+                        lines = lines.map(line => line.trim());
+                    }
+                    if (removeEmpty) {
+                        lines = lines.filter(line => line.length > 0);
+                    }
+                    jsonData.lines = lines;
+                    break;
+
+                case 'single':
+                    jsonData.content = processedContent;
+                    break;
+
+                case 'paragraphs':
+                    let paragraphs = processedContent.split(/\n\s*\n/);
+                    if (trimWhitespace) {
+                        paragraphs = paragraphs.map(p => p.trim());
+                    }
+                    if (removeEmpty) {
+                        paragraphs = paragraphs.filter(p => p.length > 0);
+                    }
+                    jsonData.paragraphs = paragraphs;
+                    break;
+
+                case 'custom':
+                    jsonData[customKey] = processedContent;
+                    break;
+
+                default:
+                    jsonData.content = processedContent;
+            }
+
+            return jsonData;
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            // Auto-esconder após 5 segundos se for sucesso
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        // Inicializar
+        handleStructureChange();
+    </script>
+</body>
+</html>
