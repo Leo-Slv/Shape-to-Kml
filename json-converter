@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor JSON para KML - Processamento em Lote</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+        
+        .upload-section {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 2px dashed #e2e8f0;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #edf2f7;
+            transform: scale(1.02);
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .file-input-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .upload-text {
+            margin: 15px 0;
+            color: #4a5568;
+            font-size: 16px;
+        }
+        
+        .files-list {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: #feb2b2;
+            color: #c53030;
+        }
+        
+        .status-processing {
+            background: #fbd38d;
+            color: #dd6b20;
+        }
+        
+        .status-success {
+            background: #9ae6b4;
+            color: #2f855a;
+        }
+        
+        .status-error {
+            background: #fed7d7;
+            color: #e53e3e;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin: 25px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .convert-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .convert-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+        
+        .download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .clear-btn {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+            color: white;
+        }
+        
+        .clear-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(229, 62, 62, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .info {
+            background: linear-gradient(135deg, #3182ce, #2c5aa0);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .error-log {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .processing {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ Conversor JSON para KML - Lote</h1>
+        
+        <div class="info">
+            <strong>Processamento em Lote:</strong><br>
+            Selecione múltiplos arquivos JSON com dados de áreas. O sistema processará todos automaticamente e gerará um arquivo ZIP com os KMLs correspondentes, mantendo os nomes originais dos arquivos.
+        </div>
+        
+        <div class="upload-section" id="uploadSection">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" class="file-input" multiple accept=".json" />
+                <button class="file-input-button" onclick="document.getElementById('fileInput').click()">
+                    📁 Selecionar Arquivos JSON
+                </button>
+            </div>
+            <div class="upload-text">
+                ou arraste e solte os arquivos aqui
+            </div>
+            <small style="color: #718096;">Aceita múltiplos arquivos .json</small>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalFiles">0</div>
+                <div class="stat-label">Arquivos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="processedFiles">0</div>
+                <div class="stat-label">Processados</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="successFiles">0</div>
+                <div class="stat-label">Sucesso</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="errorFiles">0</div>
+                <div class="stat-label">Erros</div>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="files-list" id="filesList" style="display: none;">
+            <h3>Arquivos Carregados:</h3>
+            <div id="filesContainer"></div>
+        </div>
+        
+        <div class="button-group">
+            <button class="convert-btn" id="convertBtn" onclick="processAllFiles()" disabled>
+                🔄 Processar Todos os Arquivos
+            </button>
+            <button class="download-btn" id="downloadBtn" onclick="downloadZip()" disabled>
+                📦 Baixar ZIP com KMLs
+            </button>
+            <button class="clear-btn" onclick="clearAllFiles()">
+                🗑️ Limpar Arquivos
+            </button>
+        </div>
+        
+        <div class="error-log" id="errorLog"></div>
+    </div>
+
+    <!-- Biblioteca JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        let selectedFiles = [];
+        let processedKMLs = [];
+        let stats = {
+            total: 0,
+            processed: 0,
+            success: 0,
+            errors: 0
+        };
+        
+        // Event listeners para drag and drop
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => 
+                file.name.toLowerCase().endsWith('.json')
+            );
+            handleFiles(files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+        
+        function handleFiles(files) {
+            if (files.length === 0) {
+                alert('Por favor, selecione arquivos JSON válidos.');
+                return;
+            }
+            
+            selectedFiles = [...selectedFiles, ...files];
+            updateUI();
+            displayFiles();
+        }
+        
+        function displayFiles() {
+            const filesList = document.getElementById('filesList');
+            const filesContainer = document.getElementById('filesContainer');
+            
+            filesContainer.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-status status-pending" id="status-${index}">Pendente</span>
+                `;
+                filesContainer.appendChild(fileItem);
+            });
+            
+            filesList.style.display = selectedFiles.length > 0 ? 'block' : 'none';
+        }
+        
+        function updateUI() {
+            stats.total = selectedFiles.length;
+            
+            document.getElementById('totalFiles').textContent = stats.total;
+            document.getElementById('processedFiles').textContent = stats.processed;
+            document.getElementById('successFiles').textContent = stats.success;
+            document.getElementById('errorFiles').textContent = stats.errors;
+            
+            document.getElementById('convertBtn').disabled = stats.total === 0;
+            
+            const progress = stats.total > 0 ? (stats.processed / stats.total) * 100 : 0;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+        
+        async function processAllFiles() {
+            if (selectedFiles.length === 0) return;
+            
+            const convertBtn = document.getElementById('convertBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const errorLog = document.getElementById('errorLog');
+            
+            convertBtn.disabled = true;
+            convertBtn.classList.add('processing');
+            downloadBtn.disabled = true;
+            processedKMLs = [];
+            
+            // Reset stats
+            stats.processed = 0;
+            stats.success = 0;
+            stats.errors = 0;
+            
+            errorLog.style.display = 'none';
+            errorLog.innerHTML = '';
+            
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const statusElement = document.getElementById(`status-${i}`);
+                
+                try {
+                    statusElement.textContent = 'Processando';
+                    statusElement.className = 'file-status status-processing';
+                    
+                    const kmlContent = await processFile(file);
+                    
+                    if (kmlContent) {
+                        const fileName = file.name.replace(/\.json$/i, '.kml');
+                        processedKMLs.push({
+                            name: fileName,
+                            content: kmlContent
+                        });
+                        
+                        statusElement.textContent = 'Sucesso';
+                        statusElement.className = 'file-status status-success';
+                        stats.success++;
+                    } else {
+                        throw new Error('Não foi possível gerar KML');
+                    }
+                    
+                } catch (error) {
+                    statusElement.textContent = 'Erro';
+                    statusElement.className = 'file-status status-error';
+                    stats.errors++;
+                    
+                    const errorMsg = `Erro em ${file.name}: ${error.message}\n`;
+                    errorLog.innerHTML += errorMsg;
+                    errorLog.style.display = 'block';
+                }
+                
+                stats.processed++;
+                updateUI();
+                
+                // Pequena pausa para não travar a UI
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            convertBtn.classList.remove('processing');
+            convertBtn.disabled = false;
+            downloadBtn.disabled = processedKMLs.length === 0;
+            
+            if (stats.success > 0) {
+                alert(`Processamento concluído!\n${stats.success} arquivos convertidos com sucesso.`);
+            }
+        }
+        
+        async function processFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const content = e.target.result;
+                        let cleanJson = content;
+                        
+                        // Limpeza do JSON
+                        cleanJson = cleanJson.replace(/[^\x20-\x7E\n\r\t]/g, '');
+                        cleanJson = cleanJson.replace(/,(\s*[}\]])/g, '$1');
+                        cleanJson = cleanJson.replace(/[""]/g, '"');
+                        cleanJson = cleanJson.replace(/['']/g, "'");
+                        
+                        const data = JSON.parse(cleanJson);
+                        
+                        // Buscar as coordenadas nas diferentes estruturas possíveis
+                        let areas = [];
+                        
+                        if (data.data && data.data.areas) {
+                            areas = data.data.areas;
+                        } else if (data.areas) {
+                            areas = data.areas;
+                        } else if (data.data && data.data.setorAreaCoordenadas) {
+                            areas = [data.data];
+                        } else if (data.setorAreaCoordenadas) {
+                            areas = [data];
+                        }
+                        
+                        if (areas.length === 0) {
+                            reject(new Error('Nenhuma área com coordenadas encontrada'));
+                            return;
+                        }
+                        
+                        const kmlContent = generateKML(areas, file.name);
+                        resolve(kmlContent);
+                        
+                    } catch (error) {
+                        reject(new Error('JSON inválido: ' + error.message));
+                    }
+                };
+                
+                reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+                reader.readAsText(file);
+            });
+        }
+        
+        function generateKML(areas, fileName) {
+            const baseName = fileName.replace(/\.json$/i, '');
+            
+            let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+    <Document>
+        <name>${baseName}</name>
+        <description>Áreas convertidas de ${fileName}</description>
+        
+        <Style id="areaStyle">
+            <LineStyle>
+                <color>ff0000ff</color>
+                <width>3</width>
+            </LineStyle>
+            <PolyStyle>
+                <color>330000ff</color>
+                <fill>1</fill>
+                <outline>1</outline>
+            </PolyStyle>
+        </Style>
+`;
+            
+            areas.forEach((area, index) => {
+                const coordinates = area.setorAreaCoordenadas;
+                if (!coordinates || coordinates.length === 0) {
+                    return;
+                }
+                
+                const areaName = area.descricao || area.identificador || `Área ${index + 1}`;
+                const areaCode = area.codigo || index + 1;
+                
+                kml += `
+        <Placemark>
+            <name>${areaName}</name>
+            <description>Código: ${areaCode} | Arquivo: ${fileName}</description>
+            <styleUrl>#areaStyle</styleUrl>
+            <Polygon>
+                <extrude>0</extrude>
+                <altitudeMode>clampToGround</altitudeMode>
+                <outerBoundaryIs>
+                    <LinearRing>
+                        <coordinates>`;
+                
+                // Converter coordenadas
+                coordinates.forEach(coord => {
+                    const lat = coord.latitude / 1000000;
+                    const lng = coord.longitude / 1000000;
+                    kml += `\n                            ${lng},${lat},0`;
+                });
+                
+                // Fechar o polígono repetindo a primeira coordenada
+                if (coordinates.length > 0) {
+                    const firstCoord = coordinates[0];
+                    const lat = firstCoord.latitude / 1000000;
+                    const lng = firstCoord.longitude / 1000000;
+                    kml += `\n                            ${lng},${lat},0`;
+                }
+                
+                kml += `
+                        </coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
+        </Placemark>`;
+            });
+            
+            kml += `
+    </Document>
+</kml>`;
+            
+            return kml;
+        }
+        
+        async function downloadZip() {
+            if (processedKMLs.length === 0) {
+                alert('Nenhum KML foi processado ainda.');
+                return;
+            }
+            
+            const zip = new JSZip();
+            
+            processedKMLs.forEach(kml => {
+                zip.file(kml.name, kml.content);
+            });
+            
+            try {
+                const content = await zip.generateAsync({type: "blob"});
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `areas_kml_${new Date().toISOString().slice(0,10)}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                alert(`ZIP baixado com sucesso!\n${processedKMLs.length} arquivos KML incluídos.`);
+                
+            } catch (error) {
+                alert('Erro ao gerar ZIP: ' + error.message);
+            }
+        }
+        
+        function clearAllFiles() {
+            selectedFiles = [];
+            processedKMLs = [];
+            stats = { total: 0, processed: 0, success: 0, errors: 0 };
+            
+            document.getElementById('filesList').style.display = 'none';
+            document.getElementById('errorLog').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            
+            updateUI();
+        }
+        
+        // Inicializar UI
+        updateUI();
+    </script>
+</body>
+</html>
